@@ -1,3 +1,9 @@
+# ini files
+desktop.ini
+
+# Temp files
+/bd
+
 # History files
 .Rhistory
 .Rapp.history
