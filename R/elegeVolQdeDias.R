@@ -11,8 +11,13 @@
 #########################################################################
 
 # Instalando as funcoes do contabiliDados
-source("https://raw.githubusercontent.com/kleberformiga/contabilidados/master/contabilidados.R")
-cntdd.carregaPacotes("tidyverse")
+
+  cntdd <- file.path("https://raw.githubusercontent.com",
+                   "kleberformiga/contabilidados/master",
+                   "contabilidados.R")
+
+  source(cntdd)
+  cntdd.carregaPacotes("tidyverse")
 
 # Montagem das bases de dados ####
 
@@ -38,13 +43,13 @@ cntdd.carregaPacotes("tidyverse")
 # e volume diário do ano anterior
 
   # Parâmetros
-    param.volume <- 3100
-    param.percdias <- 0.01
+    param.volume <- 500000 # valor absoluto (ver a unidade da base de dados)
+    param.percdias <- 0.8  # valor percentual. Informar 0.1, se pretende 10%
   
   # Elegibilidade por:
   #  1) acao mais negociada (quando tiver duas por empresa)
-  #  2) acao com mais de x% (percdias) de dias negociados no ano anterior
-  #  3) acao com volume diário médio maior que 500.000 no ano anterior (parVolume)
+  #  2) acao com mais de x% (param.percdias) de dias negociados no ano anterior
+  #  3) acao com volume diário médio maior que $x (param.volume) no ano anterior
   
     # Indica o banco de dados
     bdPainel %>%
@@ -90,4 +95,11 @@ cntdd.carregaPacotes("tidyverse")
     # Seleciona código do papel e o ano
     select(cod, empresa, ano) -> elege.qdeVol
     
-    
+
+# Gera lista com o ano e as empresas correspondentes
+    elege.qdeVol %>%
+      group_split(ano) %>%
+      setNames(sort(unique(elege.qdeVol$ano))) -> listaQdeVol
+
+# Remove objetos desnecessários (limpa ambiente)
+rm(bdPainel, ddNeg, cntdd, param.percdias, param.volume)
