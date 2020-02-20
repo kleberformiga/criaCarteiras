@@ -2,7 +2,7 @@
 # GERAÇÃO DA BASE DE DADOS                                              #
 # Filtro por retornos disponiveis nos 12 meses anteriores e posteriores #
 # Inputs:                                                               #
-#        1) Planilha com preço de fechamento e volume diário            #
+#        1) Planilha com preço de fechamento                            #
 # Outputs:                                                              #
 #        1) Banco de dados com código, ano, mes e retorno de cada acao  #
 #        2) Banco de dados com calculo do momento de cada acao          #
@@ -26,20 +26,21 @@
   # Baixa dados de preço (fechamento) com função apropriada
   # para matrix do Economatica
 
-  cntdd.BaixaDados("bdPainel",
+  cntdd.BaixaDados("fechamento",
     PathFile = "G:/Meu Drive/criaCarteiras/R/dados/fechDiarioport.xlsx",
-    Periodo = "dia",
+    Periodo = "data",
     Planilha =  "Fechamento", ClassPeriodo = "date", ClassValue = "numeric"
   )
 
   gc()
   
+# Gera planilha com retornos mensais de todas as empresas da base
   
   # Os retornos mensais de cada empresa foram calculados a partir do
   # preco do ultimo dia negociado em cada mes
   
     # Indica a base de dados
-    bdPainel %>%
+    BDFECHAMENTO %>%
     
     # Divide a data em três colunas: ano, mês e dia
     separate(data, c("ano", "mes", "dia"), convert = T) %>%
@@ -64,27 +65,53 @@
     group_by(cod) %>%
     
     # Calcula o retorno mensal de cada empresa
-    mutate(retorno = log(preco/lag(preco))) %>%
+    mutate(retorno = log(fechamento/lag(fechamento))) %>%
   
     # Elimina a primeira observação de cada empresa perdida no
     # cálculo do retorno. Desagrupa a base de dados. Atribui o nome
     # bd.retornos ao objeto relativo ao banco de dados de retornos
-    na.omit %>% ungroup -> bd.retornos
+    na.omit %>% ungroup -> todosRetornos
     
+# Partindo do banco de dados bd.retornos criado na etapa anterior:
+    # Verifica quais empresas possuem retornos em todos os meses do ano, sendo
+    # calculado o momento de todas elas. A base com momento terá um ano a menos,
+    # pois o ano anterior de cada empresa será suprimido no cálculo da variável
     
-  # filtro de empresas com retornos em todos os meses do ano e com informacoes
-  # disponiveis no anterior e seguinte
-  todosRetornos <<-
-    retornos %>%
-    group_by(cod, ano) %>%
+    # Indica a base de dados
+    todosRetornos %>%
+    
+    # Agrupa por código e ano
+    group_by(cod, ano) %>% 
+      
+    # Summariza os dados criando uma variável que conta quantos meses cada
+    # empresa possui por ano
     summarise(qdeMes = n()) %>%
-    filter(qdeMes == 12) %>% #filtramos a qtd de meses igual a 12 para ter todos os meses do ano
-    group_by(cod) %>% 
-    #verificamos se exista valores no ano anterior e ano posterior ao ano avaliado
-    mutate(portf = ifelse(shift(ano) == ano-1 & shift(ano, type = "lead") == ano+1, ano, NA)) %>% 
-    # banco de dados com cod das empresas e anos que possuem dados do ano anterior e posterior 
-    # buscar os retornos mensais dos anos validos e correspondentes
-    left_join(select(retornos, cod, ano, mes, retorno), by = c("cod", "ano")) %>% 
-    # calculo do momento
-    mutate(momento = (shift(retorno, 2) / shift(retorno, 12))-1)
-  
+    
+    # Filtra apenas as empresas cujos anos possuem todos os meses com retorno
+    filter(qdeMes == 12) %>% ungroup %>% 
+      
+    # Agrupa por código
+    group_by(cod) %>%
+    
+    # Verifica a existência de retornos nos anos anterior e posterior
+    mutate(retornoPre = ifelse(lag(ano) == ano-1, ano, NA),
+           retornoPos = ifelse(lead(ano) == ano+1, ano, NA)) %>%
+    
+    # Criado o banco com todos os códigos com 12 meses de retorno e identificada
+    # a disponibilidade de retornos no ano anterior e posterior, une-se a base
+    # de dados com todos os retornos
+    left_join(select(todosRetornos, cod, ano, mes, retorno), by = c("cod", "ano")) %>%
+    
+    # Calculo do momento
+    # (caso o retorno anterior seja zero, assume valor do retorno igual a 0.01)
+    mutate(
+      momento =
+        ifelse(lag(retorno, 12) == 0,
+               ifelse(lag(ano, 12) == ano-1,
+                      (lag(retorno, 2) - 0.01)/0.01, NA),
+               ifelse(lag(ano, 12) == ano-1,
+                      (lag(retorno, 2) - lag(retorno, 12))/abs(lag(retorno, 12)),
+                      NA))) -> bd.retornos
+
+# Remove objetos desnecessários (limpa ambiente)
+rm(BDFECHAMENTO, cntdd)
