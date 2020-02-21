@@ -1,4 +1,4 @@
-#########################################################################
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # GERAÇÃO DA BASE DE DADOS                                              #
 # Definição das características a serem incorporadas nas carteiras      #
 # Inputs:                                                               #
@@ -10,7 +10,7 @@
 #        1) Outras caracteristicas poderão ser adicionadas, bastando    #
 #        adicionar a fórmula correspondente ao código, bem como incluir #
 #        a nova variável na lista                                       #
-#########################################################################
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 # Instalando as funcoes do contabiliDados
 
@@ -20,6 +20,16 @@
   source(cntdd)
   cntdd.carregaPacotes("tidyverse")
 
+# Utilizando dados das etapas anteriores
+    
+  # source("R/elegeVolQdeDias.R")
+  # source("R/elegeRetornos.R")
+
+  bd.retornos   <- readRDS("bd/bd.retornos.rds")
+  elege.qdeVol  <- readRDS("bd/elege.qdeVol.rds")
+  todosRetornos <- readRDS("bd/todosRetornos.rds")
+
+  
 # Montagem das bases de dados ####
 
   # Baixa dados de planica com características desejadas com
@@ -32,7 +42,7 @@
   
   gc()
   
-# Gera planilha com dados mensais das características
+# Cria banco com dados mensais das características ####
   
   # Indica a base de dados
   bdPainel %>%
@@ -54,14 +64,16 @@
   
   # Preenche os dois meses iniciais do trimestre com o valor do
   # último mes do trimestre de cada empresa
-  fill(patLiq, .direction = "up") %>% 
+  mutate(patLiq = ifelse(is.infinite(max(patLiq, na.rm = T)), NA, max(patLiq, na.rm = T))) %>%
+  # fill(patLiq, .direction = "down") %>% # Demora muito
+  # fill(patLiq, .direction = "up") %>% 
   
   # Retirar valores nulos (NA) das variáveis cujas caracteristicas sao usadas
   filter(patLiq > 0 & !is.na(vrMerc)) %>%
   
   # Gera a variável book-to-market (BM)
-  mutate(tamanho = round(log(vrMerc), 4), bm = round(patLiq/vrMerc, 4)) %>%
-  
+  mutate(tamanho = vrMerc/1000000, bm = round(patLiq/vrMerc, 4)) %>%
+
   # Agrupa por código e por ano
   group_by(cod, ano) %>%
   
@@ -73,13 +85,85 @@
   
   # Seleciona as variáveis de interesse
   select(cod, ano, trim, mes, tamanho, bm) -> bd.TamBm
-  
-  gc()
 
-# Cria banco com momento
+# Cria banco com momento ####
 
   bd.TamBm %>%
-    left_join(
-      select(bd.retornos, cod, ano, mes, momento),
+    inner_join(select(bd.retornos, cod, ano, mes, momento),
              by = c("cod", "ano", "mes")) %>% 
     na.omit -> bd.TamBmMom
+  
+  gc()
+  
+# Classifica as empresas, conforme parâmetros
+
+  # Parâmetros
+  carteiras    <- c("c.tamanho", "c.bm", "c.momento")
+  nomeVariavel <- c("tamanho", "bm", "momento")
+  rotulo       <- list(c("Small", "Medium", "Big"), c("Low", "Medium", "High"), c("Win", "Medium", "Losers"))
+  probAuto     <- list(0:length(rotulo[[1]])/length(rotulo[[1]]), 0:length(rotulo[[2]])/length(rotulo[[2]]), 0:length(rotulo[[3]])/length(rotulo[[3]]))
+  # probManual   <- list(c(0, 0.3, 0.7, 1), c(0, 0.4, 0.6, 1))
+  mesCaracter  <- list(11, 12, 12)
+  
+# Monta características do portfolio
+
+    select(elege.qdeVol,-empresa) %>%
+    inner_join(bd.TamBm, by = c("cod", "ano")) %>%
+    inner_join(select(bd.retornos, cod, ano, mes, momento),
+               by = c("cod", "ano", "mes")) %>%
+    arrange(cod, ano, trim, mes) %>% 
+    na.omit %>% setDT -> bd.classifica
+    
+  bd.caracteristicas <- list()
+  
+  for (i in seq_along(carteiras)) {
+    sort <- c("ano", carteiras[-length(carteiras)])[1:i]
+
+    bd.classifica[mes == mesCaracter[[i]], (carteiras[i]) :=
+        cut(get(nomeVariavel[i]), quantile(get(nomeVariavel[i]), probs = probAuto[[i]]),
+            labels = rotulo[[i]], include.lowest = T),
+      by = sort]
+    
+    bd.classifica <<-
+      bd.classifica %>% 
+      group_by(cod, ano) %>% 
+      #preenchendo os dois meses iniciais do trimestre com o valor do ultimo mes do trimestre
+      fill(!! carteiras[i], .direction = "up") %>% 
+      fill(!! carteiras[i], .direction = "down") %>% na.omit %>%  setDT
+    
+    bd.caracteristicas[[i]] <- bd.classifica %>% unique
+    
+  }
+
+# Define o período de portfolio vs balanceamento
+  
+  mesRebalanc <- max(unlist(mesCaracter))
+  
+  if(mesRebalanc == 12){
+    bd.classifica %>%
+      mutate(anoport = ano+1) %>%
+      filter(mes == mesRebalanc) %>% 
+      select(cod, anoport, starts_with("c.")) -> bd.portfolio
+  } else{
+    bd.classifica %>%
+      mutate(anoport = ifelse(mes <= mesRebalanc, ano, ano+1)) %>%
+      filter(mes == mesRebalanc) %>% 
+      select(cod, anoport, starts_with("c.")) -> bd.portfolio
+  }
+
+  
+# Cria lista de empresas por ano
+
+  bd.portfolio %>%
+    group_split(anoport) %>%
+    setNames(sort(unique(bd.portfolio$anoport))) -> listaPortfAno
+  
+  lapply(listaPortfAno, nrow) %>% unlist
+  
+# Gera banco com os retornos mensais de todos os papeis
+
+  bd.portfolio %>% 
+    inner_join(select(bd.retornos, cod, ano, mes, retorno),
+               by = c("cod", "anoport" = "ano" )) %>%
+    mutate(retorno = round(retorno, 4)) -> bd.portfolio
+
