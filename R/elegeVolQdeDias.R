@@ -18,32 +18,62 @@
 
   source(cntdd)
   cntdd.carregaPacotes("tidyverse")
+  
+  setwd("G:/Meu Drive/criaCarteiras/R")
 
 # Montagem das bases de dados ####
 
   # Quantidade de pregões na B3 por ano
 
-  ddNeg <- readRDS("G:/Meu Drive/criaCarteiras/R/dados/diasNeg.rds") %>% 
-  mutate(ano = as.integer(ano))
+  ddNeg <- read.csv("G:/Meu Drive/criaCarteiras/R/dados/numPregoes.csv",
+                    skip = 1, sep = ";") %>% 
+    mutate(lagQdeDiasTot = shift(qdeDiasTot)) %>%
+    select(ano, qdeDiasTot, lagQdeDiasTot) %>% na.omit
 
   # Baixa dados de preço (fechamento) e volume com função apropriada
   # para matrix do Economatica
   
-  cntdd.uneMatrix(
-    Arquivo = "G:/Meu Drive/criaCarteiras/R/dados/fechDiarioport.xlsx",
-    SeqVarPlan = c("preco", "volume"),
-    index = c("cod", "data"),
-    clsPer = "date", clsVlr = "numeric"
-  )
-
-  gc()
+  # Arquivo 1994-1999
+  arquivo <- "dados/Fechvolumediario1994a1999.xlsx"
+  cntdd.uneMatrix(Arquivo = arquivo, SeqVarPlan = c("preco", "volume"),
+                  index = c("cod", "data"),
+                  clsPer = "date", clsVlr = "numeric")
+  bd1 <- bdPainel %>% filter(year(data) != 1993) %>%
+    na.omit %>% data.table
   
+  # Arquivo 2000-2009
+  arquivo <- "dados/Fechvolumediario2000a2009.xlsx"
+  cntdd.uneMatrix(Arquivo = arquivo, SeqVarPlan = c("preco", "volume"),
+                  index = c("cod", "data"),
+                  clsPer = "date", clsVlr = "numeric")
+  bd2 <- bdPainel %>% filter(year(data) != 1999) %>% 
+    na.omit %>% data.table
+  
+  bdDiario <- merge.data.table(bd1, bd2, all = T)
+  attributes(bdDiario)$sorted <- NULL
+  
+  # Arquivo 2010-2019
+  arquivo <- "dados/Fechvolumediario2010a2019.xlsx"
+  cntdd.uneMatrix(Arquivo = arquivo, SeqVarPlan = c("preco", "volume"),
+                  index = c("cod", "data"),
+                  clsPer = "date", clsVlr = "numeric")
+  bd3 <- bdPainel %>% na.omit %>% data.table
+  attributes(bd3)$sorted <- NULL
+
+  bdPainel <- merge.data.table(bdDiario, bd3, all = T)
+  
+  rm(bd1, bd2, bd3, bdDiario); gc()
+
+# Processo de elegibilidade ####
+    
+  # saveRDS(bdPainel, "dados/FechVolDiario.rds")
+  # bdPainel <- na.omit(readRDS("dados/FechVolDiario.rds"))
   
 # Preparando o filtro com percentual de dias negociados no ano anterior
 # e volume diário do ano anterior
 
   # Parâmetros
-    param.volume <- 500000 # valor absoluto (ver a unidade da base de dados)
+    param.volume <- 500 # valor absoluto (ver a unidade da base de dados)
     param.percdias <- 0.8  # valor percentual. Informar 0.1, se pretende 10%
   
   # Elegibilidade por:
@@ -65,7 +95,7 @@
       
     # Calcula a quantidade de dias negociados e o volume diário médio
     # por código e por ano (grupo)
-    summarise(qdeDias = n(), volumeMedio = mean(volume, na.rm = T)) %>% 
+    summarise(qdeDias = n(), volumeMedio = mean(volume, na.rm = T)) %>%
       
     # Une a base de dados com a base de dias de negociação da B3
     left_join(ddNeg, by = "ano") %>% 
@@ -95,11 +125,17 @@
     # Seleciona código do papel e o ano
     select(cod, empresa, ano) -> elege.qdeVol
     
+    # saveRDS(elege.qdeVol, "dados/elege.qdeVol.rds") # Salva o BD
 
 # Gera lista com o ano e as empresas correspondentes
     elege.qdeVol %>%
       group_split(ano) %>%
       setNames(sort(unique(elege.qdeVol$ano))) -> listaQdeVol
 
+    # saveRDS(listaQdeVol, "dados/listaQdeVol.rds") # Salva a lista Qde/Vol
+    sapply(listaQdeVol, nrow)
+    
 # Remove objetos desnecessários (limpa ambiente)
-rm(bdPainel, ddNeg, cntdd, param.percdias, param.volume)
+rm(ddNeg, cntdd, param.percdias, param.volume); gc()
+
+# Fim

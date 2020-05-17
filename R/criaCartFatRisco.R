@@ -3,6 +3,13 @@
 
 # Carteiras
 
+  # Mercado
+  bd.portfolio %>% 
+    group_by(anoport, mes) %>%
+    summarise(retMercado = mean(retorno)) %>%
+    arrange(anoport, mes) -> portMercado
+
+
   # Tamanho
   bd.portfolio %>%
     group_by(c.tamanho, anoport, mes) %>%
@@ -50,8 +57,15 @@
     arrange(anoport, mes) -> fatorTamanho
   
   ggplot(fatorTamanho, aes(x = 1:nrow(fatorTamanho), y = SMB)) +
-    geom_line() +
-    geom_line(aes(x = 1:nrow(fatorTamanho), y = 0), color = "red")
+    geom_line(color = "blue") +
+    geom_line(aes(x = 1:nrow(fatorTamanho), y = 0), color = "red") +
+    labs(title = "Evolução do Fator Tamanho (SMB)", subtitle = "Período de 2010 a 2017",
+         caption = paste0("@2020 contabiliDados \n", "Fonte: Economática")) + cntdd.theme
+
+    
+
+    
+
 
   # High minus Low (HML)
   bd.portfolio %>%

@@ -33,7 +33,15 @@
   )
 
   gc()
+
+
+# Processo de elegibilidade ####
   
+  # saveRDS(bdPainel, "dados/FechVolDiario.rds")
+  BDFECHAMENTO <- na.omit(readRDS("dados/FechVolDiario.rds"))
+  BDFECHAMENTO %>% select(-volume) -> BDFECHAMENTO
+
+    
 # Gera planilha com retornos mensais de todas as empresas da base
   
   # Os retornos mensais de cada empresa foram calculados a partir do
@@ -65,12 +73,14 @@
     group_by(cod) %>%
     
     # Calcula o retorno mensal de cada empresa
-    mutate(retorno = log(fechamento/lag(fechamento))) %>%
+    mutate(retorno = log(preco/lag(preco))) %>%
   
     # Elimina a primeira observação de cada empresa perdida no
     # cálculo do retorno. Desagrupa a base de dados. Atribui o nome
     # bd.retornos ao objeto relativo ao banco de dados de retornos
     na.omit %>% ungroup -> todosRetornos
+    
+    # saveRDS(todosRetornos, "dados/todosRetornos.rds") # Salva BD TodosRetornos
     
 # Partindo do banco de dados bd.retornos criado na etapa anterior:
     # Verifica quais empresas possuem retornos em todos os meses do ano, sendo
@@ -112,6 +122,17 @@
                ifelse(lag(ano, 12) == ano-1,
                       (lag(retorno, 2) - lag(retorno, 12))/abs(lag(retorno, 12)),
                       NA))) -> bd.retornos
+    
+    # saveRDS(bd.retornos, "dados/bd.retornos.rds") # Salva BD retornos
+
+
+# Gera lista com o ano e as empresas correspondentes
+    bd.retornos %>% ungroup() %>% 
+      group_split(ano) %>%
+      setNames(sort(unique(bd.retornos$ano))) -> listaQdeRet
+    
+    # saveRDS(listaQdeRet, "dados/listaretornos.rds") # Salva lista de retornos
+    sapply(listaQdeRet, nrow)/12
 
 # Remove objetos desnecessários (limpa ambiente)
 rm(BDFECHAMENTO, cntdd)

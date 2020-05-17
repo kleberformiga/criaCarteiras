@@ -25,20 +25,50 @@
   # source("R/elegeVolQdeDias.R")
   # source("R/elegeRetornos.R")
 
-  bd.retornos   <- readRDS("bd/bd.retornos.rds")
-  elege.qdeVol  <- readRDS("bd/elege.qdeVol.rds")
-  todosRetornos <- readRDS("bd/todosRetornos.rds")
+  bd.retornos   <- readRDS("dados/bd.retornos.rds")
+  elege.qdeVol  <- readRDS("dados/elege.qdeVol.rds")
+  todosRetornos <- readRDS("dados/todosRetornos.rds")
 
   
 # Montagem das bases de dados ####
 
-  # Baixa dados de planica com características desejadas com
+  # Baixa dados de planilha com características desejadas com
   # função apropriada para matrix do Economatica
   
-  cntdd.uneMatrix("G:/Meu Drive/criaCarteiras/R/dados/Data.xlsx",
+  
+  # Arquivo 1994-1999
+  arquivo <- "dados/Datamensal1994a1999.xlsx"
+  cntdd.uneMatrix(Arquivo = arquivo,
                   SeqVarPlan = c("patLiq" , "preco", "volume", "vrMerc"),
-                  index = c("cod", "data"), clsPer = "date", clsVlr = "numeric")
-
+                  index = c("cod", "data"),
+                  clsPer = "date", clsVlr = "numeric")
+  bd1 <- bdPainel %>% filter(year(data) != 1993) %>%
+    na.omit %>% data.table
+  
+  # Arquivo 2000-2009
+  arquivo <- "dados/Datamensal2000a2009.xlsx"
+  cntdd.uneMatrix(Arquivo = arquivo,
+                  SeqVarPlan = c("patLiq" , "preco", "volume", "vrMerc"),
+                  index = c("cod", "data"),
+                  clsPer = "date", clsVlr = "numeric")
+  bd2 <- bdPainel %>% filter(year(data) != 1999) %>% 
+    na.omit %>% data.table
+  
+  bdDiario <- merge.data.table(bd1, bd2, all = T)
+  attributes(bdDiario)$sorted <- NULL
+  
+  # Arquivo 2010-2019
+  arquivo <- "dados/Datamensal2010a2019.xlsx"
+  cntdd.uneMatrix(Arquivo = arquivo,
+                  SeqVarPlan = c("patLiq" , "preco", "volume", "vrMerc"),
+                  index = c("cod", "data"),
+                  clsPer = "date", clsVlr = "numeric")
+  bd3 <- bdPainel %>% na.omit %>% data.table
+  attributes(bd3)$sorted <- NULL
+  
+  bdPainel <- merge.data.table(bdDiario, bd3, all = T)
+  
+  rm(bd1, bd2, bd3, bdDiario); gc()
   
   gc()
   
@@ -64,7 +94,8 @@
   
   # Preenche os dois meses iniciais do trimestre com o valor do
   # último mes do trimestre de cada empresa
-  mutate(patLiq = ifelse(is.infinite(max(patLiq, na.rm = T)), NA, max(patLiq, na.rm = T))) %>%
+  mutate(patLiq = ifelse(is.infinite(max(patLiq, na.rm = T)), NA,
+                         max(patLiq, na.rm = T))) %>%
   # fill(patLiq, .direction = "down") %>% # Demora muito
   # fill(patLiq, .direction = "up") %>% 
   
@@ -81,7 +112,7 @@
   mutate(qdemes = n()) %>%
   
   # Filtra apenas as empresas com 12 meses de observações por ano
-  filter(qdemes == 12) %>%
+  filter(qdemes == 4) %>%
   
   # Seleciona as variáveis de interesse
   select(cod, ano, trim, mes, tamanho, bm) -> bd.TamBm
@@ -100,10 +131,14 @@
   # Parâmetros
   carteiras    <- c("c.tamanho", "c.bm", "c.momento")
   nomeVariavel <- c("tamanho", "bm", "momento")
-  rotulo       <- list(c("Small", "Medium", "Big"), c("Low", "Medium", "High"), c("Win", "Medium", "Losers"))
-  probAuto     <- list(0:length(rotulo[[1]])/length(rotulo[[1]]), 0:length(rotulo[[2]])/length(rotulo[[2]]), 0:length(rotulo[[3]])/length(rotulo[[3]]))
-  # probManual   <- list(c(0, 0.3, 0.7, 1), c(0, 0.4, 0.6, 1))
-  mesCaracter  <- list(11, 12, 12)
+  rotulo       <- list(c("Small", "Medium", "Big"), c("Low", "Medium", "High"), c("Losers", "Medium", "Win"))
+  probCart     <- list(0:length(rotulo[[1]])/length(rotulo[[1]]),
+                       0:length(rotulo[[2]])/length(rotulo[[2]]),
+                       0:length(rotulo[[3]])/length(rotulo[[3]]))
+  # probCart   <- list(c(0, 0.3, 0.7, 1), c(0, 0.4, 0.6, 1)) # Manual
+  mesCaracter  <- list(6, 12, 12)
+  
+  length(carteiras) == mean(c(length(nomeVariavel), length(rotulo), length(probCart), length(mesCaracter)))
   
 # Monta características do portfolio
 
@@ -111,7 +146,7 @@
     inner_join(bd.TamBm, by = c("cod", "ano")) %>%
     inner_join(select(bd.retornos, cod, ano, mes, momento),
                by = c("cod", "ano", "mes")) %>%
-    arrange(cod, ano, trim, mes) %>% 
+    arrange(cod, ano, trim, mes) %>% filter(ano > 1997) %>% 
     na.omit %>% setDT -> bd.classifica
     
   bd.caracteristicas <- list()
@@ -120,7 +155,7 @@
     sort <- c("ano", carteiras[-length(carteiras)])[1:i]
 
     bd.classifica[mes == mesCaracter[[i]], (carteiras[i]) :=
-        cut(get(nomeVariavel[i]), quantile(get(nomeVariavel[i]), probs = probAuto[[i]]),
+        cut(get(nomeVariavel[i]), quantile(get(nomeVariavel[i]), probs = probCart[[i]]),
             labels = rotulo[[i]], include.lowest = T),
       by = sort]
     
@@ -167,3 +202,20 @@
                by = c("cod", "anoport" = "ano" )) %>%
     mutate(retorno = round(retorno, 4)) -> bd.portfolio
 
+  # saveRDS(bd.portfolio, "dados/rds/bdPortfolio.rds")
+
+# Gera lista com o ano e as empresas correspondentes
+  bd.portfolio %>% ungroup() %>% 
+    group_split(anoport, mes) -> listaPortfolio
+  
+  for (i in 1:length(listaPortfolio)) {
+    names(listaPortfolio)[i] <- 
+    paste(as.numeric(unique(listaPortfolio[[i]][2])),
+          as.numeric(unique(listaPortfolio[[i]][6])),
+          sep = "-")
+    
+  }
+
+  
+  # saveRDS(listaQdeRet, "dados/listaretornos.rds") # Salva lista de retornos
+  sapply(listaQdeRet, nrow)/12
