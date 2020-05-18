@@ -25,7 +25,7 @@
 
   # Quantidade de pregões na B3 por ano
 
-  ddNeg <- read.csv("G:/Meu Drive/criaCarteiras/R/dados/numPregoes.csv",
+  ddNeg <- read.csv("dados/numPregoes.csv",
                     skip = 1, sep = ";") %>% 
     mutate(lagQdeDiasTot = shift(qdeDiasTot)) %>%
     select(ano, qdeDiasTot, lagQdeDiasTot) %>% na.omit
@@ -63,6 +63,8 @@
   bdPainel <- merge.data.table(bdDiario, bd3, all = T)
   
   rm(bd1, bd2, bd3, bdDiario); gc()
+  
+  bdPainel <- bdPainel %>% arrange(cod, data)
 
 # Processo de elegibilidade ####
     

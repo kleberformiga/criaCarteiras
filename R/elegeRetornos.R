@@ -13,33 +13,10 @@
 #           por outras variaveis, tem-se aumento de um ano de dados     #
 #########################################################################
 
-# Instalando as funcoes do contabiliDados
-
-  cntdd <- file.path("https://raw.githubusercontent.com",
-                     "kleberformiga/contabilidados/master",
-                     "contabilidados.R")
-  source(cntdd)
-  cntdd.carregaPacotes("tidyverse")
-
-# Montagem das bases de dados ####
-
-  # Baixa dados de preço (fechamento) com função apropriada
-  # para matrix do Economatica
-
-  cntdd.BaixaDados("fechamento",
-    PathFile = "G:/Meu Drive/criaCarteiras/R/dados/fechDiarioport.xlsx",
-    Periodo = "data",
-    Planilha =  "Fechamento", ClassPeriodo = "date", ClassValue = "numeric"
-  )
-
-  gc()
-
-
 # Processo de elegibilidade ####
   
   # saveRDS(bdPainel, "dados/FechVolDiario.rds")
-  BDFECHAMENTO <- na.omit(readRDS("dados/FechVolDiario.rds"))
-  BDFECHAMENTO %>% select(-volume) -> BDFECHAMENTO
+  bdPainel %>% select(-volume) %>% na.omit -> BDFECHAMENTO
 
     
 # Gera planilha com retornos mensais de todas as empresas da base
@@ -135,4 +112,4 @@
     sapply(listaQdeRet, nrow)/12
 
 # Remove objetos desnecessários (limpa ambiente)
-rm(BDFECHAMENTO, cntdd)
+rm(BDFECHAMENTO)
