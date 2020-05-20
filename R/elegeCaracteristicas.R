@@ -25,9 +25,9 @@
   # source("R/elegeVolQdeDias.R")
   # source("R/elegeRetornos.R")
 
-  bd.retornos   <- readRDS("dados/rds/bd.retornos.rds")
-  elege.qdeVol  <- readRDS("dados/rds/elege.qdeVol.rds")
-  todosRetornos <- readRDS("dados/rds/todosRetornos.rds")
+  # bd.retornos   <- readRDS("dados/rds/bd.retornos.rds")
+  # elege.qdeVol  <- readRDS("dados/rds/elege.qdeVol.rds")
+  # todosRetornos <- readRDS("dados/rds/todosRetornos.rds")
 
   
 # Montagem das bases de dados ####
@@ -128,14 +128,13 @@
 # Classifica as empresas, conforme parâmetros
 
   # Parâmetros
-  carteiras    <- c("c.tamanho", "c.bm", "c.momento")
-  nomeVariavel <- c("tamanho", "bm", "momento")
-  rotulo       <- list(c("Small", "Medium", "Big"), c("Low", "Medium", "High"), c("Losers", "Medium", "Win"))
-  probCart     <- list(0:length(rotulo[[1]])/length(rotulo[[1]]),
-                       0:length(rotulo[[2]])/length(rotulo[[2]]),
-                       0:length(rotulo[[3]])/length(rotulo[[3]]))
-  # probCart   <- list(c(0, 0.3, 0.7, 1), c(0, 0.4, 0.6, 1)) # Manual
-  mesCaracter  <- list(6, 12, 12)
+  carteiras    <- c("c.tamanho", "c.bm")
+  nomeVariavel <- c("tamanho", "bm")
+  rotulo       <- list(c("Small", "Big"), c("Low", "Medium", "High"))
+  # probCart     <- list(0:length(rotulo[[1]])/length(rotulo[[1]]),
+  #                      0:length(rotulo[[2]])/length(rotulo[[2]]))
+  probCart   <- list(c(0, 0.5, 1), c(0, 0.333333, 0.66666, 1)) # Manual
+  mesCaracter  <- list(12, 12)
   
   length(carteiras) == mean(c(length(nomeVariavel), length(rotulo), length(probCart), length(mesCaracter)))
   
@@ -171,7 +170,7 @@
 
 # Define o período de portfolio vs balanceamento
   
-  mesRebalanc <- max(unlist(mesCaracter))
+  mesRebalanc <- 6
   
   if(mesRebalanc == 12){
     bd.classifica %>%
@@ -186,6 +185,27 @@
   }
 
   
+  if(mesRebalanc == 12){
+    bd.retornos %>%
+      mutate(anoport = ano+1) %>%
+      select(cod, anoport, mes, retorno) -> bd.retornos
+  } else{
+    bd.retornos %>%
+      mutate(anoport = ifelse(mes <= mesRebalanc, ano, ano+1)) %>%
+      select(cod, anoport, mes, retorno) -> bd.retornos
+  }
+  
+  
+  if(mesRebalanc == 12){
+    bd.TamBm %>% ungroup %>% 
+      mutate(anoport = ano+1) %>%
+      select(cod, anoport, mes, tamanho) -> bd.TamBm
+  } else{
+    bd.TamBm %>% ungroup %>% 
+      mutate(anoport = ifelse(mes <= mesRebalanc, ano, ano+1)) %>%
+      select(cod, anoport, mes, tamanho) -> bd.TamBm
+  }
+
 # Cria lista de empresas por ano
 
   bd.portfolio %>%
@@ -197,11 +217,11 @@
 # Gera banco com os retornos mensais de todos os papeis
 
   bd.portfolio %>% 
-    inner_join(select(bd.retornos, cod, ano, mes, retorno),
-               by = c("cod", "anoport" = "ano" )) %>%
+    inner_join(select(bd.retornos, cod, anoport, mes, retorno),
+               by = c("cod", "anoport")) %>%
     mutate(retorno = round(retorno, 4)) %>% 
-    inner_join(select(bd.TamBm, cod, ano, mes, tamanho),
-               by = c("cod", "anoport" = "ano", "mes")) -> bd.portfolio
+    inner_join(select(bd.TamBm, cod, anoport, mes, tamanho),
+               by = c("cod", "anoport", "mes")) -> bd.portfolio
 
   # saveRDS(bd.portfolio, "dados/rds/bdPortfolio.rds")
 
@@ -212,7 +232,7 @@
   for (i in 1:length(listaPortfolio)) {
     names(listaPortfolio)[i] <- 
     paste(as.numeric(unique(listaPortfolio[[i]][2])),
-          as.numeric(unique(listaPortfolio[[i]][7])),
+          as.numeric(unique(listaPortfolio[[i]][5])),
           sep = "-")
     
   }

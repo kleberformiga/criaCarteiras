@@ -16,7 +16,7 @@
 # Processo de elegibilidade ####
   
   # saveRDS(bdPainel, "dados/FechVolDiario.rds")
-  bdPainel %>% select(-volume) %>% na.omit -> BDFECHAMENTO
+  bdPrecoVol %>% select(-volume) %>% na.omit -> BDFECHAMENTO
 
     
 # Gera planilha com retornos mensais de todas as empresas da base
@@ -50,7 +50,7 @@
     group_by(cod) %>%
     
     # Calcula o retorno mensal de cada empresa
-    mutate(retorno = log(preco/lag(preco))) %>%
+    mutate(retorno = (preco-lag(preco))/lag(preco)) %>%
   
     # Elimina a primeira observação de cada empresa perdida no
     # cálculo do retorno. Desagrupa a base de dados. Atribui o nome
@@ -112,4 +112,4 @@
     sapply(listaQdeRet, nrow)/12
 
 # Remove objetos desnecessários (limpa ambiente)
-rm(BDFECHAMENTO)
+# rm(BDFECHAMENTO)

@@ -3,14 +3,6 @@
 
 # Carteiras
 
-  # Mercado
-  bd.portfolio %>% 
-    group_by(anoport, mes) %>%
-    summarise(retMercado = mean(retorno),
-              wRetMerc = weighted.mean(retorno, tamanho)) %>%
-    arrange(anoport, mes) -> portMercado
-
-
   # Tamanho
   bd.portfolio %>%
     group_by(c.tamanho, anoport, mes) %>%
@@ -53,6 +45,13 @@
     arrange(anoport, mes) -> portTamMom
   
 # Fatores de risco
+  
+  # Mercado
+  bd.portfolio %>% 
+    group_by(anoport, mes) %>%
+    summarise(retMercado = mean(retorno),
+              wRetMerc = weighted.mean(retorno, tamanho)) %>%
+    arrange(anoport, mes) -> fatorMercado
 
   # Small minus Big (SMB)
   portTamanho %>%
@@ -69,10 +68,6 @@
          caption = paste0("@2020 contabiliDados \n", "Fonte: Economática")) + cntdd.theme
 
     
-
-    
-
-
   # High minus Low (HML)
   portBm %>%
     filter(c.bm != "Medium") %>%
@@ -101,7 +96,7 @@
 # Reune fatores
   fatorTamanho %>%
     inner_join(fatorBm, by = c("anoport", "mes")) %>%
-    inner_join(fatorMomento, by = c("anoport", "mes")) %>%
+    # inner_join(fatorMomento, by = c("anoport", "mes")) %>%
     ungroup -> bd.fatores
   
   bd.fatores %>% 

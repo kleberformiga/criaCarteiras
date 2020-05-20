@@ -138,6 +138,7 @@
     sapply(listaQdeVol, nrow)
     
 # Remove objetos desnecessários (limpa ambiente)
-rm(ddNeg, cntdd, param.percdias, param.volume); gc()
+    bdPrecoVol <- bdPainel
+rm(ddNeg, cntdd, param.percdias, param.volume, bdPainel); gc()
 
 # Fim
