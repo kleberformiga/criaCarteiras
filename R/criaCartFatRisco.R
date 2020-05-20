@@ -6,28 +6,32 @@
   # Mercado
   bd.portfolio %>% 
     group_by(anoport, mes) %>%
-    summarise(retMercado = mean(retorno)) %>%
+    summarise(retMercado = mean(retorno),
+              wRetMerc = weighted.mean(retorno, tamanho)) %>%
     arrange(anoport, mes) -> portMercado
 
 
   # Tamanho
   bd.portfolio %>%
     group_by(c.tamanho, anoport, mes) %>%
-    summarise(retTamanho = mean(retorno)) %>%
+    summarise(retTamanho = mean(retorno),
+              wRetTamanho = weighted.mean(retorno, tamanho)) %>%
     arrange(anoport, mes) -> portTamanho
 
   
   # book-to-market
   bd.portfolio %>%
     group_by(c.bm, anoport, mes) %>%
-    summarise(retBm = mean(retorno)) %>%
+    summarise(retBm = mean(retorno),
+              wRetBm = weighted.mean(retorno, tamanho)) %>%
     arrange(anoport, mes) -> portBm
   
   
   # Momento
   bd.portfolio %>%
     group_by(c.momento, anoport, mes) %>%
-    summarise(retMomento = mean(retorno)) %>%
+    summarise(retMomento = mean(retorno),
+              wRetMomento = weighted.mean(retorno, tamanho)) %>%
     arrange(anoport, mes) -> portMomento
   
   
@@ -35,7 +39,8 @@
   bd.portfolio %>%
     filter(c.tamanho != "Medium" & c.bm != "Medium") %>% 
     group_by(c.tamanho, c.bm, anoport, mes) %>%
-    summarise(retTamBm = mean(retorno)) %>%
+    summarise(retTamBm = mean(retorno),
+              wRetTamBm = weighted.mean(retorno, tamanho)) %>%
     arrange(anoport, mes) -> portTamBm
   
   
@@ -43,15 +48,16 @@
   bd.portfolio %>%
     filter(c.tamanho != "Medium" & c.momento != "Medium") %>% 
     group_by(c.tamanho, c.momento, anoport, mes) %>%
-    summarise(retTamMom = mean(retorno)) %>%
+    summarise(retTamMom = mean(retorno),
+              wRetTamMom = weighted.mean(retorno, tamanho)) %>%
     arrange(anoport, mes) -> portTamMom
   
 # Fatores de risco
 
   # Small minus Big (SMB)
-  bd.portfolio %>%
+  portTamanho %>%
     filter(c.tamanho != "Medium") %>%
-    mutate(retFator = ifelse(c.tamanho == "Big", retorno*-1, retorno)) %>% 
+    mutate(retFator = ifelse(c.tamanho == "Big", wRetTamanho*-1, wRetTamanho)) %>% 
     group_by(anoport, mes) %>%
     summarise(SMB = sum(retFator)) %>%
     arrange(anoport, mes) -> fatorTamanho
@@ -68,9 +74,9 @@
 
 
   # High minus Low (HML)
-  bd.portfolio %>%
+  portBm %>%
     filter(c.bm != "Medium") %>%
-    mutate(retFator = ifelse(c.bm == "Low", retorno*-1, retorno)) %>% 
+    mutate(retFator = ifelse(c.bm == "Low", wRetBm*-1, wRetBm)) %>% 
     group_by(anoport, mes) %>%
     summarise(HML = sum(retFator)) %>%
     arrange(anoport, mes) -> fatorBm
@@ -81,9 +87,9 @@
 
   
   # Winners minus Losers (WML)
-  bd.portfolio %>%
+  portMomento %>%
     filter(c.momento != "Medium") %>%
-    mutate(retFator = ifelse(c.momento == "Losers", retorno*-1, retorno)) %>% 
+    mutate(retFator = ifelse(c.momento == "Losers", wRetMomento*-1, wRetMomento)) %>% 
     group_by(anoport, mes) %>%
     summarise(WML = sum(retFator)) %>%
     arrange(anoport, mes) -> fatorMomento

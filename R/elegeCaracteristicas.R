@@ -25,9 +25,9 @@
   # source("R/elegeVolQdeDias.R")
   # source("R/elegeRetornos.R")
 
-  bd.retornos   <- readRDS("dados/bd.retornos.rds")
-  elege.qdeVol  <- readRDS("dados/elege.qdeVol.rds")
-  todosRetornos <- readRDS("dados/todosRetornos.rds")
+  bd.retornos   <- readRDS("dados/rds/bd.retornos.rds")
+  elege.qdeVol  <- readRDS("dados/rds/elege.qdeVol.rds")
+  todosRetornos <- readRDS("dados/rds/todosRetornos.rds")
 
   
 # Montagem das bases de dados ####
@@ -42,8 +42,7 @@
                   SeqVarPlan = c("patLiq" , "preco", "volume", "vrMerc"),
                   index = c("cod", "data"),
                   clsPer = "date", clsVlr = "numeric")
-  bd1 <- bdPainel %>% filter(year(data) != 1993) %>%
-    na.omit %>% data.table
+  bd1 <- bdPainel %>% filter(year(data) != 1993) %>% data.table
   
   # Arquivo 2000-2009
   arquivo <- "dados/Datamensal2000a2009.xlsx"
@@ -51,8 +50,7 @@
                   SeqVarPlan = c("patLiq" , "preco", "volume", "vrMerc"),
                   index = c("cod", "data"),
                   clsPer = "date", clsVlr = "numeric")
-  bd2 <- bdPainel %>% filter(year(data) != 1999) %>% 
-    na.omit %>% data.table
+  bd2 <- bdPainel %>% filter(year(data) != 1999) %>% data.table
   
   bdDiario <- merge.data.table(bd1, bd2, all = T)
   attributes(bdDiario)$sorted <- NULL
@@ -63,7 +61,7 @@
                   SeqVarPlan = c("patLiq" , "preco", "volume", "vrMerc"),
                   index = c("cod", "data"),
                   clsPer = "date", clsVlr = "numeric")
-  bd3 <- bdPainel %>% na.omit %>% data.table
+  bd3 <- bdPainel %>% data.table
   attributes(bd3)$sorted <- NULL
   
   bdPainel <- merge.data.table(bdDiario, bd3, all = T)
@@ -75,7 +73,7 @@
 # Cria banco com dados mensais das características ####
   
   # Indica a base de dados
-  bdPainel %>%
+  bdPainel %>% 
   
   # Divide a data em três colunas: ano, mês e dia. Elimina a coluna Dia
   separate(data, c("ano", "mes", "dia"), convert = T) %>% select(-dia) %>%
@@ -103,7 +101,8 @@
   filter(patLiq > 0 & !is.na(vrMerc)) %>%
   
   # Gera a variável book-to-market (BM)
-  mutate(tamanho = vrMerc/1000000, bm = round(patLiq/vrMerc, 4)) %>%
+  ungroup %>% 
+  mutate(tamanho = vrMerc/1000, bm = round(patLiq/vrMerc, 4)) %>%
 
   # Agrupa por código e por ano
   group_by(cod, ano) %>%
@@ -112,7 +111,7 @@
   mutate(qdemes = n()) %>%
   
   # Filtra apenas as empresas com 12 meses de observações por ano
-  filter(qdemes == 4) %>%
+  filter(qdemes == 12) %>%
   
   # Seleciona as variáveis de interesse
   select(cod, ano, trim, mes, tamanho, bm) -> bd.TamBm
@@ -200,7 +199,9 @@
   bd.portfolio %>% 
     inner_join(select(bd.retornos, cod, ano, mes, retorno),
                by = c("cod", "anoport" = "ano" )) %>%
-    mutate(retorno = round(retorno, 4)) -> bd.portfolio
+    mutate(retorno = round(retorno, 4)) %>% 
+    inner_join(select(bd.TamBm, cod, ano, mes, tamanho),
+               by = c("cod", "anoport" = "ano", "mes")) -> bd.portfolio
 
   # saveRDS(bd.portfolio, "dados/rds/bdPortfolio.rds")
 
@@ -211,11 +212,12 @@
   for (i in 1:length(listaPortfolio)) {
     names(listaPortfolio)[i] <- 
     paste(as.numeric(unique(listaPortfolio[[i]][2])),
-          as.numeric(unique(listaPortfolio[[i]][6])),
+          as.numeric(unique(listaPortfolio[[i]][7])),
           sep = "-")
     
   }
 
   
   # saveRDS(listaQdeRet, "dados/listaretornos.rds") # Salva lista de retornos
-  sapply(listaQdeRet, nrow)/12
+  # sapply(listaQdeRet, nrow)/12
+  
