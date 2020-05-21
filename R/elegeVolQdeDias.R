@@ -19,7 +19,8 @@
   source(cntdd)
   cntdd.carregaPacotes("tidyverse")
   
-  setwd("G:/Meu Drive/criaCarteiras/R")
+  # setwd("G:/Meu Drive/criaCarteiras/R")
+  # setwd("C:/repos/criaCarteiras/R")
 
 # Montagem das bases de dados ####
 
