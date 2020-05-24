@@ -264,7 +264,7 @@ bd.mmCaracFator %>%
   filter(qdemes == 12) %>%
   
   # Seleciona as variáveis de interesse
-  select(cod, ano, trim, mes, tamanho, bm) -> bd.mmTamBm
+  select(cod, ano, trim, mes, volume, tamanho, bm) -> bd.mmTamBm
 
   saveRDS(bd.mmTamBm, "dados/rds/basics/bd.mmTamBm.rds")
 

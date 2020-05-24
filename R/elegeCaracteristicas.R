@@ -182,6 +182,18 @@
     na.omit %>% setDT -> bd.mmFatoresRetorno
   
   bd.mmFatoresRetorno %>%
+    group_by(cod, ano) %>% 
+    summarise(tamanho = mean(tamanho)) %>%
+    ungroup() %>%
+    group_by(ano) %>% 
+    mutate(filtro = cut(tamanho, quantile(tamanho, probs = c(0, 0.7, 1)),
+        labels = c("menor30","maior30"), include.lowest = T)) %>% 
+    select(-tamanho) %>% 
+    inner_join(bd.mmFatoresRetorno, by = c("cod", "ano")) %>% 
+    # filter(filtro == "maior30") %>% 
+    setDT -> bd.mmFatoresRetorno
+  
+  bd.mmFatoresRetorno %>% 
     group_split(ano, mes) %>%
     setNames(sort(unique(bd.mmFatoresRetorno$ano))) -> lst.mmFatoresRetorno
   
@@ -274,3 +286,4 @@
   # saveRDS(listaQdeRet, "dados/listaretornos.rds") # Salva lista de retornos
    sapply(listaPortAnoMes, nrow)
   
+   
