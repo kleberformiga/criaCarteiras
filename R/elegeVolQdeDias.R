@@ -77,7 +77,32 @@
   source(cntdd)
   cntdd.carregaPacotes("tidyverse")
   
-  setwd("G:/Meu Drive/criaCarteiras/R")
+# <<<<<<< HEAD
+#   setwd("G:/Meu Drive/criaCarteiras/R")
+# =======
+#   # setwd("G:/Meu Drive/criaCarteiras/R")
+#   # setwd("C:/repos/criaCarteiras/R")
+# 
+# # Montagem das bases de dados ####
+# 
+#   # Quantidade de pregões na B3 por ano
+# 
+#   ddNeg <- read.csv("dados/numPregoes.csv",
+#                     skip = 1, sep = ";") %>% 
+#     mutate(lagQdeDiasTot = shift(qdeDiasTot)) %>%
+#     select(ano, qdeDiasTot, lagQdeDiasTot) %>% na.omit
+# 
+#   # Baixa dados de preço (fechamento) e volume com função apropriada
+#   # para matrix do Economatica
+#   
+#   # Arquivo 1994-1999
+#   arquivo <- "dados/Fechvolumediario1994a1999.xlsx"
+#   cntdd.uneMatrix(Arquivo = arquivo, SeqVarPlan = c("preco", "volume"),
+#                   index = c("cod", "data"),
+#                   clsPer = "date", clsVlr = "numeric")
+#   bd1 <- bdPainel %>% filter(year(data) != 1993) %>%
+#     na.omit %>% data.table
+# >>>>>>> ajustes
   
   bd.ddPrecoVolume <- readRDS("dados/rds/basics/bd.ddPrecoVolume.rds")
   bd.yyQdeDiasNegoc <- readRDS("dados/rds/basics/bd.yyQdeDiasNegoc.rds")
