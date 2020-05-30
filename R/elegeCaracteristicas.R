@@ -259,6 +259,9 @@
       select(cod, ano, mes, starts_with("c."), retorno, tamanho) %>% 
       arrange(cod, ano, mes) -> bd.portfolio
   }
+  
+  
+  saveRDS(bd.portfolio, "dados/rds/bd.portfolio.rds")
       
 
 # Cria lista de empresas por ano

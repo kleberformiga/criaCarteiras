@@ -1,6 +1,8 @@
 # Gera carteiras e fator de risco
 library(xts)
 
+bd.portfolio <- readRDS("dados/rds/bd.portfolio.rds")
+
 # Carteiras
 
   # Tamanho
@@ -49,9 +51,17 @@ library(xts)
   # Mercado
   bd.portfolio %>% 
     group_by(ano, mes) %>%
-    summarise(retMercado = mean(retorno),
-              wRetMerc = weighted.mean(retorno, tamanho)) %>%
-    arrange(ano, mes) -> fatorMercado
+    summarise(Market = weighted.mean(retorno, tamanho)) %>%
+    arrange(ano, mes) %>% 
+    arrange(ano, mes) %>% left_join(select(meses, mes.num, mes.chr),
+                                    by = c("mes" = "mes.num")) %>% 
+    mutate(data = as.Date(paste(ano, mes.chr, "01", sep = "-" ))) %>%
+    ungroup %>% select(data, Market) -> fatorMercado
+  
+  fatorMercado <- as.xts(fatorMercado[, -1], order.by = as.yearmon(as.Date(fatorMercado$data)))
+  
+  plot(fatorMercado[ "2005/"], main =  "Fator Mercado")
+  
 
   # Small minus Big (SMB)
   portTamanho %>%
@@ -66,7 +76,7 @@ library(xts)
   
   fatorTamanho <- as.xts(fatorTamanho[, -1], order.by = as.yearmon(as.Date(fatorTamanho$data)))
   
-  plot(fatorBm[ "2005/"], main =  "Fator Tamanho")
+  plot(fatorTamanho[ "2005/"], main =  "Fator Tamanho")
 
     
   # High minus Low (HML)
@@ -98,11 +108,8 @@ library(xts)
     geom_line(aes(x = 1:nrow(fatorMomento), y = 0), color = "red")
 
 # Reune fatores
-  fatorTamanho %>%
-    inner_join(fatorBm, by = c("ano", "mes")) %>%
-    # inner_join(fatorMomento, by = c("ano", "mes")) %>%
-    ungroup -> bd.fatores
-  
+  merge.xts(merge.xts(fatorMercado, fatorTamanho, join = "inner"), fatorBm, join = "inner") -> bd.fatores
+  plot.xts(bd.fatores, legend.loc = "top")
   bd.fatores %>% 
-    select(-ano, -mes) %>% cor %>% as.dist
+     cor %>% as.dist
   
